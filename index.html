@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Korzinka zakazlarini nakladnoyga aylantirish</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Excel → tahlil → nakladnoy</p>
+      <h1>Korzinka zakazlari uchun nakladnoy generator</h1>
+      <p class="lead">“Заказы с товарами 25-27.05.2026г.xls” ko‘rinishidagi faylni yuklang. Dastur magazin nomlarini birlashtiradi, takror mahsulotlarni jamlaydi va 12% NDS bilan nakladnoy tayyorlaydi.</p>
+    </div>
+    <button id="printBtn" class="ghost hide-print" type="button">Nakladnoyni chop etish</button>
+  </header>
+
+  <nav class="tabs hide-print" aria-label="Asosiy menyu">
+    <button class="tab active" data-tab="upload" type="button">1. Excel yuklash</button>
+    <button class="tab" data-tab="results" type="button">2. Tahlil natijalari</button>
+    <button class="tab" data-tab="invoice" type="button">3. Nakladnoy</button>
+  </nav>
+
+  <main>
+    <section id="upload" class="panel active">
+      <div class="card upload-card">
+        <div>
+          <h2>Excel faylni kiriting</h2>
+          <p>Faylda odatda <b>Магазин</b>, <b>Название</b>, <b>Общая сумма</b>, <b>Товар</b>, <b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b>, <b>Стоимость с учётом НДС</b> ustunlari bo‘ladi. Shu sarlavhalar topilib, qatorlar avtomatik o‘qiladi.</p>
+          <label class="dropzone" for="fileInput">
+            <span>Excel faylni tanlang yoki tashlang</span>
+            <small>.xls, .xlsx, .xlsm fayllar qo‘llab-quvvatlanadi</small>
+            <input id="fileInput" type="file" accept=".xls,.xlsx,.xlsm,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </label>
+          <div class="actions">
+            <button id="loadSampleBtn" type="button">Repositorydagi namunani yuklash</button>
+            <button id="clearBtn" class="secondary" type="button">Tozalash</button>
+          </div>
+        </div>
+        <aside class="status-box">
+          <h3>Holat</h3>
+          <p id="statusText">Hali fayl yuklanmadi.</p>
+          <ul id="summaryList" class="summary-list"></ul>
+        </aside>
+      </div>
+      <div class="card tips">
+        <h3>Parser qanday ishlaydi?</h3>
+        <ul>
+          <li>Magazin nomi <b>Название</b> ustuni ostidan olinadi; agar bir xil nom qayta kelsa, bitta magazin sifatida birlashtiriladi.</li>
+          <li>Mahsulotlar <b>Товар</b> sarlavhasidan keyingi qatorlardan o‘qiladi.</li>
+          <li><b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b> va <b>Стоимость с учётом НДС</b> qiymatlari topiladi; bo‘sh qiymatlar 12% NDS formulasi bilan to‘ldiriladi.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="results" class="panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Tahlil</p>
+          <h2>Birlashtirilgan zakazlar</h2>
+        </div>
+        <div class="button-row hide-print">
+          <button id="exportCsvBtn" class="secondary" type="button">CSV yuklab olish</button>
+          <button id="exportExcelBtn" type="button">Nakladnoy Excel yuklab olish</button>
+        </div>
+      </div>
+      <div id="resultsContent" class="empty-state">Avval Excel fayl yuklang.</div>
+    </section>
+
+    <section id="invoice" class="panel">
+      <div class="invoice-layout">
+        <form id="invoiceForm" class="card invoice-settings hide-print">
+          <h2>Nakladnoy sozlamalari</h2>
+          <label>Yetkazib beruvchi
+            <input id="supplierName" type="text" value="Korzinka yetkazib beruvchi">
+          </label>
+          <label>Hujjat prefiksi
+            <input id="invoicePrefix" type="text" value="NK">
+          </label>
+          <label>Sana
+            <input id="invoiceDate" type="date">
+          </label>
+          <label>Ko‘rinish
+            <select id="invoiceMode">
+              <option value="separate">Har bir magazin alohida nakladnoy</option>
+              <option value="single">Bitta umumiy ro‘yxat</option>
+            </select>
+          </label>
+          <label class="checkline">
+            <input id="showVat" type="checkbox" checked>
+            NDS ustunlarini ko‘rsatish
+          </label>
+          <label class="checkline">
+            <input id="groupByPrice" type="checkbox" checked>
+            Mahsulotni nomi va narxi bo‘yicha birlashtirish
+          </label>
+          <button type="button" id="buildInvoiceBtn">Nakladnoyni yangilash</button>
+          <button type="button" id="exportInvoiceExcelBtn" class="secondary">Excelga tortish</button>
+        </form>
+        <div id="invoiceContent" class="invoice-preview empty-state">Avval Excel fayl yuklang.</div>
+      </div>
+    </section>
+  </main>
+
+  <template id="storeTemplate">
+    <article class="store-card"></article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
