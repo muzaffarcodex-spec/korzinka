@@ -1,5 +1,23 @@
 const VAT_RATE = 0.12;
 const SAMPLE_FILE = 'Заказы с товарами - АСОСИЙ.xls';
+const RED = 'FF0000';
+const BLACK = '000000';
+const SUPPLIER_DEFAULTS = {
+  name: '"NILPAK" MCHJ QK',
+  address: 'Toshkent shahri, Yangihayot tumani, Janubiy Sanoat hududi, 28-uy',
+  inn: '305124079.',
+  vatReg: '326070033725.',
+  account: '20208000900811474001.',
+  bank: '01042,ТОШКЕНТ Ш., "КАПИТАЛБАНК" АТ БАНКИНИНГ СИРГАЛИ ФИЛ',
+};
+const BUYER_DEFAULTS = {
+  name: '"ANGELESEY FOOD" MCHJ XK',
+  address: 'Toshkent shaxri, Chilonzor tumani, Turob Tula ko\'chasi, 57-uy, "Besh Yog\'och" bozori hududida',
+  inn: '202099756.',
+  vatReg: '326060002860.',
+  account: '20208000600578902001.',
+  bank: '00450, ТОШКЕНТ Ш., "ТИФ МИЛЛИЙ БАНКИ" АЖ БОШ ОФИСИ',
+};
 
 const state = {
   fileName: '',
@@ -64,9 +82,9 @@ els.dropzone.addEventListener('drop', (event) => {
 
 els.loadSampleBtn.addEventListener('click', async () => {
   try {
-    setStatus('Repositorydagi namuna yuklanmoqda...');
+    setStatus('Загружается пример из репозитория...');
     const response = await fetch(encodeURI(SAMPLE_FILE));
-    if (!response.ok) throw new Error('Namuna fayl topilmadi. Saytni lokal server orqali oching.');
+    if (!response.ok) throw new Error('Файл-пример не найден. Откройте сайт через локальный сервер.');
     const buffer = await response.arrayBuffer();
     processWorkbook(buffer, SAMPLE_FILE);
   } catch (error) {
@@ -80,12 +98,12 @@ els.clearBtn.addEventListener('click', () => {
   state.stores = [];
   state.warnings = [];
   els.fileInput.value = '';
-  setStatus('Hali fayl yuklanmadi.');
+  setStatus('Файл ещё не загружен.');
   els.summaryList.innerHTML = '';
   els.resultsContent.className = 'empty-state';
-  els.resultsContent.textContent = 'Avval Excel fayl yuklang.';
+  els.resultsContent.textContent = 'Сначала загрузите Excel-файл.';
   els.invoiceContent.className = 'invoice-preview empty-state';
-  els.invoiceContent.textContent = 'Avval Excel fayl yuklang.';
+  els.invoiceContent.textContent = 'Сначала загрузите Excel-файл.';
 });
 
 els.exportCsvBtn.addEventListener('click', exportCsv);
@@ -119,14 +137,14 @@ function activateTab(name) {
 function readFile(file) {
   const reader = new FileReader();
   reader.onload = (event) => processWorkbook(event.target.result, file.name);
-  reader.onerror = () => showError('Faylni o‘qishda xatolik yuz berdi.');
-  setStatus(`${file.name} o‘qilmoqda...`);
+  reader.onerror = () => showError('Ошибка чтения файла.');
+  setStatus(`${file.name} читается...`);
   reader.readAsArrayBuffer(file);
 }
 
 function processWorkbook(buffer, fileName) {
   if (!window.XLSX) {
-    showError('XLSX kutubxonasi yuklanmadi. Internet ulanishini tekshiring yoki xlsx.full.min.js faylini lokal ulang.');
+    showError('Библиотека XLSX не загружена. Проверьте подключение к интернету или подключите xlsx-js-style локально.');
     return;
   }
 
@@ -151,7 +169,7 @@ function processWorkbook(buffer, fileName) {
     renderInvoice();
     activateTab('results');
   } catch (error) {
-    showError(`Excel faylni tahlil qilib bo‘lmadi: ${error.message}`);
+    showError(`Не удалось проанализировать Excel-файл: ${error.message}`);
   }
 }
 
@@ -223,9 +241,9 @@ function parseRows(rows) {
     products: Array.from(store.products.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru')),
   })).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
-  if (!stores.length) warnings.push('Magazin va mahsulot qatorlari topilmadi. Sarlavhalar nomini tekshiring.');
+  if (!stores.length) warnings.push('Строки магазинов и товаров не найдены. Проверьте названия заголовков.');
   stores.forEach((store) => {
-    if (!store.products.length) warnings.push(`${store.name} uchun mahsulotlar topilmadi.`);
+    if (!store.products.length) warnings.push(`${store.name} — товары не найдены.`);
   });
 
   return { stores, warnings };
@@ -439,11 +457,11 @@ function totals(products) {
 function renderSummary() {
   const productCount = state.stores.reduce((sum, store) => sum + store.products.length, 0);
   const grand = totals(state.stores.flatMap((store) => store.products));
-  setStatus(`<b>${state.fileName}</b> muvaffaqiyatli tahlil qilindi.`);
+  setStatus(`<b>${state.fileName}</b> успешно проанализирован.`);
   els.summaryList.innerHTML = [
-    `Magazinlar: <b>${state.stores.length}</b>`,
-    `Birlashtirilgan mahsulot qatorlari: <b>${productCount}</b>`,
-    `Umumiy summa NDS bilan: <b>${formatMoney(grand.gross)}</b>`,
+    `Магазины: <b>${state.stores.length}</b>`,
+    `Объединённые строки товаров: <b>${productCount}</b>`,
+    `Общая сумма с НДС: <b>${formatMoney(grand.gross)}</b>`,
     ...state.warnings.map((warning) => `<span class="error">${escapeHtml(warning)}</span>`),
   ].map((item) => `<li>${item}</li>`).join('');
 }
@@ -451,7 +469,7 @@ function renderSummary() {
 function renderResults() {
   if (!state.stores.length) {
     els.resultsContent.className = 'empty-state';
-    els.resultsContent.textContent = 'Tahlil natijasi yo‘q.';
+    els.resultsContent.textContent = 'Нет результатов анализа.';
     return;
   }
 
@@ -464,11 +482,11 @@ function storeTable(store) {
   return `
     <article class="store-card">
       <div class="store-head">
-        <div><strong>${escapeHtml(store.name)}</strong><br><span class="badge">${store.parts} ta blok birlashtirildi</span></div>
+        <div><strong>${escapeHtml(store.name)}</strong><br><span class="badge">${store.parts} блок(ов) объединено</span></div>
         <div class="kpis">
-          <span class="kpi">Tovar: ${store.products.length}</span>
-          <span class="kpi">NDS: ${formatMoney(total.vat)}</span>
-          <span class="kpi">Jami: ${formatMoney(total.gross)}</span>
+          <span class="kpi">Товар: ${store.products.length}</span>
+          <span class="kpi">НДС: ${formatMoney(total.vat)}</span>
+          <span class="kpi">Итого: ${formatMoney(total.gross)}</span>
         </div>
       </div>
       <div class="table-wrap">
@@ -484,7 +502,7 @@ function storeTable(store) {
 function renderInvoice() {
   if (!state.stores.length) {
     els.invoiceContent.className = 'invoice-preview empty-state';
-    els.invoiceContent.textContent = 'Avval Excel fayl yuklang.';
+    els.invoiceContent.textContent = 'Сначала загрузите Excel-файл.';
     return;
   }
 
@@ -492,7 +510,7 @@ function renderInvoice() {
   const mode = els.invoiceMode.value;
   els.invoiceContent.className = 'invoice-preview';
   els.invoiceContent.innerHTML = mode === 'single'
-    ? invoiceDocument({ name: 'Umumiy nakladnoy', products: stores.flatMap((store) => store.products) }, 1)
+    ? invoiceDocument({ name: 'Общая счёт-фактура', products: stores.flatMap((store) => store.products) }, 1)
     : stores.map((store, index) => invoiceDocument(store, index + 1)).join('');
 }
 
@@ -512,14 +530,14 @@ function invoiceDocument(store, number) {
   return `
     <article class="invoice-document">
       <div class="invoice-title">
-        <h2>Nakladnoy № ${escapeHtml(els.invoicePrefix.value || 'NK')}-${String(number).padStart(3, '0')}</h2>
+        <h2>Счёт-фактура № ${escapeHtml(els.invoicePrefix.value || 'NK')}-${String(number).padStart(3, '0')}</h2>
         <p>${formatDate(date)}</p>
       </div>
       <div class="invoice-meta">
-        <div><b>Yetkazib beruvchi:</b> ${escapeHtml(els.supplierName.value || '-')}</div>
-        <div><b>Qabul qiluvchi / Магазин:</b> ${escapeHtml(store.name)}</div>
-        <div><b>Asos fayl:</b> ${escapeHtml(state.fileName)}</div>
-        <div><b>12% NDS:</b> ${formatMoney(total.vat)}</div>
+        <div><b>Поставщик:</b> ${escapeHtml(els.supplierName.value || '-')}</div>
+        <div><b>Покупатель / Магазин:</b> ${escapeHtml(store.name)}</div>
+        <div><b>Исходный файл:</b> ${escapeHtml(state.fileName)}</div>
+        <div><b>12% НДС:</b> ${formatMoney(total.vat)}</div>
       </div>
       <div class="table-wrap">
         <table>
@@ -529,15 +547,15 @@ function invoiceDocument(store, number) {
         </table>
       </div>
       <div class="signatures">
-        <div>Topshirdi</div>
-        <div>Qabul qildi</div>
+        <div>Отпустил</div>
+        <div>Получил</div>
       </div>
     </article>`;
 }
 
 function productHeader(showVat) {
   return `<tr>
-    <th>№</th><th>Товар / Mahsulot nomi</th><th class="num">Кол-во</th><th class="num">Цена за единицу</th><th class="num">Стоимость</th>
+    <th>№</th><th>Наименование товаров</th><th class="num">Кол-во</th><th class="num">Цена за единицу</th><th class="num">Стоимость</th>
     ${showVat ? '<th class="num">НДС 12%</th><th class="num">Стоимость с учётом НДС</th>' : ''}
   </tr>`;
 }
@@ -550,7 +568,7 @@ function productRow(item, index = '', showVat = true) {
 }
 
 function totalRow(total, showVat) {
-  return `<tr><td colspan="2">Jami</td><td class="num">${formatQuantity(total.quantity)}</td><td></td><td class="num">${formatMoney(total.net)}</td>${showVat ? `<td class="num">${formatMoney(total.vat)}</td><td class="num">${formatMoney(total.gross)}</td>` : ''}</tr>`;
+  return `<tr><td colspan="2">Итого</td><td class="num">${formatQuantity(total.quantity)}</td><td></td><td class="num">${formatMoney(total.net)}</td>${showVat ? `<td class="num">${formatMoney(total.vat)}</td><td class="num">${formatMoney(total.gross)}</td>` : ''}</tr>`;
 }
 
 function exportCsv() {
@@ -567,26 +585,26 @@ function exportExcel() {
   const mode = els.invoiceMode.value;
 
   if (mode === 'single') {
-    appendStoreSheet(workbook, { name: 'Umumiy nakladnoy', products: stores.flatMap((store) => store.products) }, 'Nakladnoy');
+    appendStoreSheet(workbook, { name: 'Общая счёт-фактура', products: stores.flatMap((store) => store.products) }, 'Счёт-фактура');
   } else {
     stores.forEach((store, index) => appendStoreSheet(workbook, store, `${index + 1}-${store.name}`));
   }
 
   const summarySheet = XLSX.utils.aoa_to_sheet(buildFlatExportRows());
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Tahlil');
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Анализ');
   XLSX.writeFile(workbook, `nakladnoy-${Date.now()}.xlsx`);
 }
 
 function appendStoreSheet(workbook, store, sheetName) {
   const total = totals(store.products);
   const rows = [
-    [`Nakladnoy № ${els.invoicePrefix.value || 'NK'}`, '', '', '', '', '', ''],
-    ['Sana', formatDate(els.invoiceDate.value || new Date().toISOString().slice(0, 10)), '', 'Magazin', store.name, '', ''],
-    ['Yetkazib beruvchi', els.supplierName.value || '-', '', 'Asos fayl', state.fileName, '', ''],
+    [`Счёт-фактура № ${els.invoicePrefix.value || 'NK'}`, '', '', '', '', '', ''],
+    ['Дата', formatDate(els.invoiceDate.value || new Date().toISOString().slice(0, 10)), '', 'Магазин', store.name, '', ''],
+    ['Поставщик', els.supplierName.value || '-', '', 'Исходный файл', state.fileName, '', ''],
     [],
-    ['№', 'Товар / Mahsulot nomi', 'Кол-во', 'Цена за единицу', 'Стоимость', 'НДС 12%', 'Стоимость с учётом НДС'],
+    ['№', 'Наименование товаров', 'Кол-во', 'Цена за единицу', 'Стоимость', 'НДС 12%', 'Стоимость с учётом НДС'],
     ...store.products.map((item, index) => [index + 1, item.name, normalizeNumber(item.quantity), normalizeNumber(item.price), normalizeNumber(item.net), normalizeNumber(item.vat), normalizeNumber(item.gross)]),
-    ['Jami', '', normalizeNumber(total.quantity), '', normalizeNumber(total.net), normalizeNumber(total.vat), normalizeNumber(total.gross)],
+    ['Итого', '', normalizeNumber(total.quantity), '', normalizeNumber(total.net), normalizeNumber(total.vat), normalizeNumber(total.gross)],
   ];
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
   worksheet['!cols'] = [{ wch: 8 }, { wch: 44 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 24 }];
@@ -601,7 +619,7 @@ function exportInvoiceTemplateExcel() {
   const stores = rebuildStoresForCurrentGrouping();
   const mode = els.invoiceMode.value;
   const invoiceStores = mode === 'single'
-    ? [{ name: 'Umumiy nakladnoy', products: stores.flatMap((store) => store.products), parts: stores.length }]
+    ? [{ name: 'Общая счёт-фактура', products: stores.flatMap((store) => store.products), parts: stores.length }]
     : stores;
 
   invoiceStores.forEach((store, storeIndex) => {
@@ -626,6 +644,7 @@ function appendTemplateInvoiceSheet(workbook, store, invoiceNumber, sheetName) {
 
   fillInvoiceCopy(worksheet, 0, store, invoiceNumber);
   fillInvoiceCopy(worksheet, 57, store, invoiceNumber);
+  applyTemplateInvoiceStyles(worksheet);
 
   XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName(sheetName));
 }
@@ -644,34 +663,37 @@ function fillInvoiceCopy(worksheet, offset, store, invoiceNumber) {
   const date = els.invoiceDate.value || new Date().toISOString().slice(0, 10);
   const invoiceNo = `${els.invoicePrefix.value || 'NK'}-${String(invoiceNumber).padStart(3, '0')}`;
 
+  const monthText = formatRussianInvoiceMonth(date);
   setCell(worksheet, `A${titleRow}`, store.name);
-  setCell(worksheet, `H${titleRow}`, `СЧЕТ-ФАКТУРА № ${invoiceNo} от ${formatRussianDate(date)}г.`);
+  setCell(worksheet, `H${titleRow}`, `СЧЕТ-ФАКТУРА № ${invoiceNo}`);
+  setCell(worksheet, `P${titleRow}`, 'от');
+  setCell(worksheet, `R${titleRow}`, `${monthText}г.`);
   setCell(worksheet, `A${contractRow}`, '      к Договору № 15/365 от «28» ноября 2022г.');
 
   setCell(worksheet, `A${infoStart}`, 'Поставщик:');
-  setCell(worksheet, `C${infoStart}`, els.supplierName.value || '"NILPAK" MCHJ QK');
+  setCell(worksheet, `C${infoStart}`, els.supplierName.value || SUPPLIER_DEFAULTS.name);
   setCell(worksheet, `M${infoStart}`, 'Покупатель:');
-  setCell(worksheet, `O${infoStart}`, store.name);
+  setCell(worksheet, `O${infoStart}`, BUYER_DEFAULTS.name);
   setCell(worksheet, `A${infoStart + 1}`, 'Адрес:');
-  setCell(worksheet, `C${infoStart + 1}`, 'Toshkent shahri, Yangihayot tumani, Janubiy Sanoat hududi, 28-uy');
+  setCell(worksheet, `C${infoStart + 1}`, SUPPLIER_DEFAULTS.address);
   setCell(worksheet, `M${infoStart + 1}`, 'Адрес:');
-  setCell(worksheet, `O${infoStart + 1}`, '');
+  setCell(worksheet, `O${infoStart + 1}`, BUYER_DEFAULTS.address);
   setCell(worksheet, `A${infoStart + 2}`, 'ИНН:');
-  setCell(worksheet, `C${infoStart + 2}`, '305124079.');
+  setCell(worksheet, `C${infoStart + 2}`, SUPPLIER_DEFAULTS.inn);
   setCell(worksheet, `M${infoStart + 2}`, 'ИНН:');
-  setCell(worksheet, `O${infoStart + 2}`, '');
+  setCell(worksheet, `O${infoStart + 2}`, BUYER_DEFAULTS.inn);
   setCell(worksheet, `A${infoStart + 3}`, 'РКП НДС:');
-  setCell(worksheet, `C${infoStart + 3}`, '326070033725.');
+  setCell(worksheet, `C${infoStart + 3}`, SUPPLIER_DEFAULTS.vatReg);
   setCell(worksheet, `M${infoStart + 3}`, 'РКП НДС:');
-  setCell(worksheet, `O${infoStart + 3}`, '');
+  setCell(worksheet, `O${infoStart + 3}`, BUYER_DEFAULTS.vatReg);
   setCell(worksheet, `A${infoStart + 4}`, 'Банковский счет:');
-  setCell(worksheet, `C${infoStart + 4}`, '20208000900811474001.');
+  setCell(worksheet, `C${infoStart + 4}`, SUPPLIER_DEFAULTS.account);
   setCell(worksheet, `M${infoStart + 4}`, 'Банковский счет:');
-  setCell(worksheet, `O${infoStart + 4}`, '');
+  setCell(worksheet, `O${infoStart + 4}`, BUYER_DEFAULTS.account);
   setCell(worksheet, `A${infoStart + 5}`, 'МФО банка:');
-  setCell(worksheet, `C${infoStart + 5}`, '01042,ТОШКЕНТ Ш., "КАПИТАЛБАНК" АТ БАНКИНИНГ СИРГАЛИ ФИЛ');
+  setCell(worksheet, `C${infoStart + 5}`, SUPPLIER_DEFAULTS.bank);
   setCell(worksheet, `M${infoStart + 5}`, 'МФО банка:');
-  setCell(worksheet, `O${infoStart + 5}`, '');
+  setCell(worksheet, `O${infoStart + 5}`, BUYER_DEFAULTS.bank);
 
   setCell(worksheet, `A${headerRow}`, '№');
   setCell(worksheet, `B${headerRow}`, 'Наименование товаров ');
@@ -711,11 +733,13 @@ function makeBlankRows(rowCount, columnCount) {
 }
 
 function setCell(worksheet, address, value) {
+  const existing = worksheet[address] || {};
   worksheet[address] = {
+    ...existing,
     t: typeof value === 'number' ? 'n' : 's',
     v: value,
   };
-  if (typeof value === 'number') worksheet[address].z = '#,##0.######';
+  if (typeof value === 'number') worksheet[address].z = '#,##0.00';
 }
 
 function chunkProducts(products, size) {
@@ -737,6 +761,7 @@ function templateColumns() {
 function templateRows() {
   return Array.from({ length: 113 }, (_, index) => {
     const rowNumber = index + 1;
+    if ([1, 2, 58, 59].includes(rowNumber)) return { hpt: 23.25 };
     if (rowNumber === 57) return { hpt: 24 };
     if ([4, 8, 61, 65].includes(rowNumber)) return { hpt: 30 };
     return { hpt: 18 };
@@ -747,7 +772,10 @@ function templateMerges() {
   const merges = [];
   [0, 57].forEach((offset) => {
     merges.push(
-      mergeRange(offset + 1, 8, offset + 1, 21),
+      mergeRange(offset + 1, 1, offset + 1, 5),
+      mergeRange(offset + 1, 8, offset + 1, 14),
+      mergeRange(offset + 1, 16, offset + 1, 17),
+      mergeRange(offset + 1, 18, offset + 1, 21),
       mergeRange(offset + 2, 1, offset + 2, 21),
       mergeRange(offset + 3, 3, offset + 3, 12),
       mergeRange(offset + 3, 15, offset + 3, 21),
@@ -789,6 +817,71 @@ function templateMerges() {
   return merges;
 }
 
+
+function applyTemplateInvoiceStyles(worksheet) {
+  worksheet['!ref'] = 'A1:V113';
+  [0, 57].forEach((offset, copyIndex) => {
+    const color = copyIndex === 0 ? BLACK : RED;
+    const infoStyle = templateCellStyle({ color: RED, bold: true, size: 9, horizontal: 'left', vertical: 'center', bottom: true });
+    const titleStyle = templateCellStyle({ color, bold: true, size: 16, horizontal: 'center', vertical: 'center' });
+    const contractStyle = templateCellStyle({ color, bold: true, size: 14, horizontal: 'center', vertical: 'center' });
+    const headerStyle = templateCellStyle({ color, bold: true, size: 13, horizontal: 'center', vertical: 'center', wrapText: true, border: true });
+    const bodyStyle = templateCellStyle({ color, bold: true, size: 12, horizontal: 'center', vertical: 'center', border: true });
+    const nameStyle = templateCellStyle({ color, bold: true, size: 12, horizontal: 'left', vertical: 'center', border: true });
+    const totalStyle = templateCellStyle({ color, bold: true, size: 12, horizontal: 'right', vertical: 'center', border: true });
+    const signatureStyle = templateCellStyle({ color: RED, bold: true, size: 10, horizontal: 'left', vertical: 'center', top: true });
+
+    styleRange(worksheet, offset + 1, 1, offset + 1, 21, titleStyle);
+    styleRange(worksheet, offset + 2, 1, offset + 2, 21, contractStyle);
+    styleRange(worksheet, offset + 3, 1, offset + 8, 21, infoStyle);
+    styleRange(worksheet, offset + 10, 1, offset + 11, 21, headerStyle);
+    styleRange(worksheet, offset + 12, 1, offset + 29, 21, bodyStyle);
+    styleRange(worksheet, offset + 30, 1, offset + 30, 21, totalStyle);
+    styleRange(worksheet, offset + 34, 1, offset + 34, 21, signatureStyle);
+    styleRange(worksheet, offset + 36, 1, offset + 36, 4, templateCellStyle({ color: RED, bold: true, size: 10, horizontal: 'left', vertical: 'center' }));
+
+    for (let row = offset + 12; row <= offset + 29; row += 1) {
+      setStyle(worksheet, row, 2, nameStyle);
+    }
+
+    // Red header accents match the uploaded СЧФ template and screenshot.
+    ['A', 'B', 'I', 'J', 'M', 'N', 'Q', 'R', 'S'].forEach((col) => {
+      const address = `${col}${offset + 10}`;
+      worksheet[address].s = { ...worksheet[address].s, font: { ...worksheet[address].s.font, color: { rgb: RED } } };
+    });
+    ['Q', 'R'].forEach((col) => {
+      const address = `${col}${offset + 11}`;
+      worksheet[address].s = { ...worksheet[address].s, font: { ...worksheet[address].s.font, color: { rgb: RED } } };
+    });
+  });
+}
+
+function templateCellStyle({ color = BLACK, bold = false, size = 11, horizontal = 'center', vertical = 'center', wrapText = false, border = false, bottom = false, top = false } = {}) {
+  const thin = { style: 'thin', color: { rgb: BLACK } };
+  const light = { style: 'thin', color: { rgb: 'D9D9D9' } };
+  return {
+    font: { name: 'Arial', sz: size, bold, color: { rgb: color } },
+    alignment: { horizontal, vertical, wrapText },
+    border: border
+      ? { top: thin, right: thin, bottom: thin, left: thin }
+      : { bottom: bottom ? thin : light, top: top ? thin : light, right: light, left: light },
+  };
+}
+
+function styleRange(worksheet, startRow, startCol, endRow, endCol, style) {
+  for (let row = startRow; row <= endRow; row += 1) {
+    for (let col = startCol; col <= endCol; col += 1) {
+      setStyle(worksheet, row, col, style);
+    }
+  }
+}
+
+function setStyle(worksheet, row, col, style) {
+  const address = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 });
+  worksheet[address] = worksheet[address] || { t: 's', v: '' };
+  worksheet[address].s = style;
+}
+
 function mergeRange(startRow, startCol, endRow, endCol) {
   return { s: { r: startRow - 1, c: startCol - 1 }, e: { r: endRow - 1, c: endCol - 1 } };
 }
@@ -801,8 +894,16 @@ function formatRussianDate(value) {
   return `${Number(day)} ${monthNames[monthIndex]} ${year}`;
 }
 
+function formatRussianInvoiceMonth(value) {
+  const [year, month] = value.split('-');
+  const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const monthIndex = Number(month) - 1;
+  if (monthIndex < 0 || monthIndex > 11 || !year) return value;
+  return `${monthNames[monthIndex]} ${year}`;
+}
+
 function buildFlatExportRows() {
-  const lines = [['Magazin', 'Tovar', 'Kol-vo', 'Narx', 'Qiymat', 'NDS 12%', 'NDS bilan']];
+  const lines = [['Магазин', 'Товар', 'Кол-во', 'Цена', 'Стоимость', 'НДС 12%', 'Стоимость с НДС']];
   state.stores.forEach((store) => {
     store.products.forEach((item) => lines.push([store.name, item.name, item.quantity, item.price, item.net, item.vat, item.gross]));
   });
