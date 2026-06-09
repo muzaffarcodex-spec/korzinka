@@ -1,56 +1,56 @@
 <!doctype html>
-<html lang="uz">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Korzinka zakazlarini nakladnoyga aylantirish</title>
+  <title>Счёт-фактура для Korzinka</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div>
-      <p class="eyebrow">Excel → tahlil → nakladnoy</p>
-      <h1>Korzinka zakazlari uchun nakladnoy generator</h1>
-      <p class="lead">“Заказы с товарами 25-27.05.2026г.xls” ko‘rinishidagi faylni yuklang. Dastur magazin nomlarini birlashtiradi, takror mahsulotlarni jamlaydi va 12% NDS bilan nakladnoy tayyorlaydi.</p>
+      <p class="eyebrow">Excel → анализ → счёт-фактура</p>
+      <h1>Генератор счёт-фактур для заказов Korzinka</h1>
+      <p class="lead">Загрузите файл вида “Заказы с товарами - АСОСИЙ.xls”. Программа объединяет магазины, суммирует повторяющиеся товары и формирует счёт-фактуру с НДС 12%.</p>
     </div>
-    <button id="printBtn" class="ghost hide-print" type="button">Nakladnoyni chop etish</button>
+    <button id="printBtn" class="ghost hide-print" type="button">Печать счёт-фактуры</button>
   </header>
 
-  <nav class="tabs hide-print" aria-label="Asosiy menyu">
-    <button class="tab active" data-tab="upload" type="button">1. Excel yuklash</button>
-    <button class="tab" data-tab="results" type="button">2. Tahlil natijalari</button>
-    <button class="tab" data-tab="invoice" type="button">3. Nakladnoy</button>
+  <nav class="tabs hide-print" aria-label="Основное меню">
+    <button class="tab active" data-tab="upload" type="button">1. Загрузка Excel</button>
+    <button class="tab" data-tab="results" type="button">2. Результаты анализа</button>
+    <button class="tab" data-tab="invoice" type="button">3. Счёт-фактура</button>
   </nav>
 
   <main>
     <section id="upload" class="panel active">
       <div class="card upload-card">
         <div>
-          <h2>Excel faylni kiriting</h2>
-          <p>Faylda odatda <b>Магазин</b>, <b>Название</b>, <b>Общая сумма</b>, <b>Товар</b>, <b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b>, <b>Стоимость с учётом НДС</b> ustunlari bo‘ladi. Shu sarlavhalar topilib, qatorlar avtomatik o‘qiladi.</p>
+          <h2>Загрузите Excel-файл</h2>
+          <p>Обычно в файле есть колонки <b>Магазин</b>, <b>Название</b>, <b>Общая сумма</b>, <b>Товар</b>, <b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b>, <b>Стоимость с учётом НДС</b>. Эти заголовки находятся автоматически, после чего строки читаются программой.</p>
           <label class="dropzone" for="fileInput">
-            <span>Excel faylni tanlang yoki tashlang</span>
-            <small>.xls, .xlsx, .xlsm fayllar qo‘llab-quvvatlanadi</small>
+            <span>Выберите или перетащите Excel-файл</span>
+            <small>.xls, .xlsx, .xlsm поддерживаются</small>
             <input id="fileInput" type="file" accept=".xls,.xlsx,.xlsm,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </label>
           <div class="actions">
-            <button id="loadSampleBtn" type="button">Repositorydagi namunani yuklash</button>
-            <button id="clearBtn" class="secondary" type="button">Tozalash</button>
+            <button id="loadSampleBtn" type="button">Загрузить пример из репозитория</button>
+            <button id="clearBtn" class="secondary" type="button">Очистить</button>
           </div>
         </div>
         <aside class="status-box">
-          <h3>Holat</h3>
-          <p id="statusText">Hali fayl yuklanmadi.</p>
+          <h3>Статус</h3>
+          <p id="statusText">Файл ещё не загружен.</p>
           <ul id="summaryList" class="summary-list"></ul>
         </aside>
       </div>
       <div class="card tips">
-        <h3>Parser qanday ishlaydi?</h3>
+        <h3>Как работает анализ?</h3>
         <ul>
-          <li>Magazin nomi <b>Название</b> ustuni ostidan olinadi; agar bir xil nom qayta kelsa, bitta magazin sifatida birlashtiriladi.</li>
-          <li>Mahsulotlar <b>Товар</b> sarlavhasidan keyingi qatorlardan o‘qiladi.</li>
-          <li><b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b> va <b>Стоимость с учётом НДС</b> qiymatlari topiladi; bo‘sh qiymatlar 12% NDS formulasi bilan to‘ldiriladi.</li>
+          <li>Название магазина берётся из колонки <b>Название</b>; одинаковые названия объединяются в один магазин.</li>
+          <li>Товары читаются из строк после заголовка <b>Товар</b>.</li>
+          <li>Значения <b>Кол-во</b>, <b>Цена за единицу</b>, <b>Стоимость</b>, <b>НДС</b> и <b>Стоимость с учётом НДС</b> находятся автоматически; пустые суммы рассчитываются по формуле НДС 12%.</li>
         </ul>
       </div>
     </section>
@@ -58,48 +58,48 @@
     <section id="results" class="panel">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Tahlil</p>
-          <h2>Birlashtirilgan zakazlar</h2>
+          <p class="eyebrow">Анализ</p>
+          <h2>Объединённые заказы</h2>
         </div>
         <div class="button-row hide-print">
-          <button id="exportCsvBtn" class="secondary" type="button">CSV yuklab olish</button>
-          <button id="exportExcelBtn" type="button">Nakladnoy Excel yuklab olish</button>
+          <button id="exportCsvBtn" class="secondary" type="button">Скачать CSV</button>
+          <button id="exportExcelBtn" type="button">Скачать счёт-фактуру Excel</button>
         </div>
       </div>
-      <div id="resultsContent" class="empty-state">Avval Excel fayl yuklang.</div>
+      <div id="resultsContent" class="empty-state">Сначала загрузите Excel-файл.</div>
     </section>
 
     <section id="invoice" class="panel">
       <div class="invoice-layout">
         <form id="invoiceForm" class="card invoice-settings hide-print">
-          <h2>Nakladnoy sozlamalari</h2>
-          <label>Yetkazib beruvchi
-            <input id="supplierName" type="text" value="Korzinka yetkazib beruvchi">
+          <h2>Настройки счёт-фактуры</h2>
+          <label>Поставщик
+            <input id="supplierName" type="text" value="&quot;NILPAK&quot; MCHJ QK">
           </label>
-          <label>Hujjat prefiksi
+          <label>Номер документа
             <input id="invoicePrefix" type="text" value="NK">
           </label>
-          <label>Sana
+          <label>Дата
             <input id="invoiceDate" type="date">
           </label>
-          <label>Ko‘rinish
+          <label>Вид
             <select id="invoiceMode">
-              <option value="separate">Har bir magazin alohida nakladnoy</option>
-              <option value="single">Bitta umumiy ro‘yxat</option>
+              <option value="separate">Каждый магазин отдельной счёт-фактурой</option>
+              <option value="single">Один общий список</option>
             </select>
           </label>
           <label class="checkline">
             <input id="showVat" type="checkbox" checked>
-            NDS ustunlarini ko‘rsatish
+            Показывать колонки НДС
           </label>
           <label class="checkline">
             <input id="groupByPrice" type="checkbox" checked>
-            Mahsulotni nomi va narxi bo‘yicha birlashtirish
+            Объединять товары по названию и цене
           </label>
-          <button type="button" id="buildInvoiceBtn">Nakladnoyni yangilash</button>
-          <button type="button" id="exportInvoiceExcelBtn" class="secondary">Excelga tortish</button>
+          <button type="button" id="buildInvoiceBtn">Обновить счёт-фактуру</button>
+          <button type="button" id="exportInvoiceExcelBtn" class="secondary">Выгрузить в Excel</button>
         </form>
-        <div id="invoiceContent" class="invoice-preview empty-state">Avval Excel fayl yuklang.</div>
+        <div id="invoiceContent" class="invoice-preview empty-state">Сначала загрузите Excel-файл.</div>
       </div>
     </section>
   </main>
